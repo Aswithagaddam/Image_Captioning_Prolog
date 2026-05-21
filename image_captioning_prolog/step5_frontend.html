@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Image Captioning + Prolog</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* =============================================
+       CSS VARIABLES
+    ============================================= */
+    :root {
+      --bg:         #0d0f14;
+      --surface:    #161922;
+      --surface2:   #1e2230;
+      --border:     #2a2f40;
+      --accent:     #6c63ff;
+      --accent2:    #a78bfa;
+      --teal:       #2dd4bf;
+      --teal-dim:   rgba(45,212,191,0.12);
+      --text:       #e8eaf0;
+      --text-muted: #8b90a8;
+      --success:    #34d399;
+      --error:      #f87171;
+      --radius:     16px;
+      --font-head:  'DM Serif Display', serif;
+      --font-body:  'DM Sans', sans-serif;
+      --font-mono:  'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      width: 100%; max-width: 920px;
+      padding: 40px 24px 80px;
+      position: relative; z-index: 1;
+    }
+
+    /* =============================================
+       HEADER
+    ============================================= */
+    header { text-align: center; margin-bottom: 48px; }
+
+    .badge {
+      display: inline-block;
+      background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.3);
+      color: var(--accent2);
+      font-size: 12px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 4px 14px; border-radius: 100px; margin-bottom: 20px;
+    }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 400; line-height: 1.1;
+      color: var(--text); margin-bottom: 14px;
+    }
+
+    h1 em { color: var(--accent2); font-style: italic; }
+    .subtitle { color: var(--text-muted); font-size: 15px; max-width: 520px; margin: 0 auto; }
+
+    /* =============================================
+       CARD
+    ============================================= */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px; margin-bottom: 20px;
+    }
+
+    /* =============================================
+       UPLOAD ZONE
+    ============================================= */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px; padding: 56px 32px;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(108,99,255,0.04);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .upload-icon {
+      width: 52px; height: 52px; margin: 0 auto 16px;
+      background: rgba(108,99,255,0.12); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .upload-icon svg { width: 24px; height: 24px; stroke: var(--accent2); fill: none; }
+    .upload-zone h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+    .upload-zone p { color: var(--text-muted); font-size: 13px; }
+
+    /* =============================================
+       PREVIEW
+    ============================================= */
+    #preview-section { display: none; }
+    .preview-wrap {
+      position: relative; border-radius: 12px;
+      overflow: hidden; background: var(--surface2); margin-bottom: 20px;
+    }
+    #preview-img { width: 100%; max-height: 380px; object-fit: contain; display: block; }
+    .change-btn {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(13,15,20,0.8);
+      border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 12px;
+      font-family: var(--font-body); padding: 6px 12px;
+      border-radius: 8px; cursor: pointer; transition: color 0.15s;
+    }
+    .change-btn:hover { color: var(--text); }
+
+    /* =============================================
+       CAPTION BUTTON
+    ============================================= */
+    #caption-btn {
+      width: 100%; padding: 14px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px;
+      font-family: var(--font-body); font-size: 15px; font-weight: 500;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    }
+    #caption-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    #caption-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* =============================================
+       LOADING
+    ============================================= */
+    #loading {
+      display: none; text-align: center; padding: 32px 0;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%; margin: 0 auto 16px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: var(--text-muted); font-size: 14px; }
+
+    /* =============================================
+       ERROR
+    ============================================= */
+    #error-box {
+      display: none; margin-top: 16px;
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      color: var(--error); padding: 12px 16px;
+      border-radius: 10px; font-size: 13px;
+      white-space: pre-line;
+    }
+
+    /* =============================================
+       TABS
+    ============================================= */
+    #result-section { display: none; margin-top: 24px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); font-family: var(--font-body);
+      font-size: 13px; padding: 7px 16px; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); border-color: var(--accent2); }
+    .tab-btn.active {
+      background: rgba(108,99,255,0.15);
+      border-color: var(--accent); color: var(--accent2);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* =============================================
+       CAPTION DISPLAY
+    ============================================= */
+    .result-label {
+      font-size: 11px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); margin-bottom: 10px;
+    }
+
+    #caption-text {
+      font-family: var(--font-head);
+      font-size: clamp(1.2rem, 3vw, 1.7rem);
+      font-style: italic; color: var(--text); line-height: 1.4;
+      padding: 24px; background: var(--surface2);
+      border-radius: 12px; border-left: 3px solid var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .meta {
+      font-size: 12px; color: var(--text-muted);
+      display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    }
+    .meta-item { display: flex; align-items: center; gap: 6px; }
+    .meta-item svg {
+      width: 13px; height: 13px;
+      stroke: var(--text-muted); fill: none; flex-shrink: 0;
+    }
+
+    /* =============================================
+       FACTS TABLE
+    ============================================= */
+    .facts-grid { display: grid; gap: 10px; }
+    .fact-row {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 14px; background: var(--surface2);
+      border-radius: 8px; border: 1px solid var(--border);
+    }
+    .fact-key {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--teal);
+      min-width: 90px; padding-top: 2px;
+    }
+    .fact-val { font-size: 13px; color: var(--text); flex: 1; }
+    .tag {
+      display: inline-block; background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.25);
+      color: var(--accent2); font-size: 11px;
+      padding: 2px 8px; border-radius: 4px; margin: 2px;
+    }
+    .tag.teal {
+      background: var(--teal-dim);
+      border-color: rgba(45,212,191,0.25); color: var(--teal);
+    }
+    .tag.green {
+      background: rgba(52,211,153,0.1);
+      border-color: rgba(52,211,153,0.25); color: var(--success);
+    }
+
+    /* =============================================
+       PROLOG FILE
+    ============================================= */
+    .prolog-wrap {
+      background: #0a0c10;
+      border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .prolog-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .prolog-topbar span { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+    .copy-small {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 11px;
+      padding: 4px 10px; border-radius: 6px; cursor: pointer;
+      font-family: var(--font-body); transition: color 0.15s;
+    }
+    .copy-small:hover { color: var(--text); }
+
+    #prolog-code {
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+      color: #c9d1d9; padding: 16px; white-space: pre; overflow-x: auto;
+    }
+    .pl-comment { color: #6a737d; }
+    .pl-pred    { color: #79c0ff; }
+    .pl-atom    { color: #a5d6ff; }
+    .pl-str     { color: #e8b467; }
+    .pl-punc    { color: #8b949e; }
+
+    /* =============================================
+       INFERENCE RESULTS
+    ============================================= */
+    .inference-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 500px) { .inference-grid { grid-template-columns: 1fr; } }
+    .inf-card {
+      padding: 14px 16px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px;
+    }
+    .inf-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .inf-value { font-size: 18px; font-weight: 600; }
+    .inf-value.true  { color: var(--success); }
+    .inf-value.false { color: var(--text-muted); }
+    .inf-value.cat   { color: var(--accent2); font-size: 14px; }
+    .inf-value.num   { color: var(--teal); }
+
+    /* =============================================
+       COPY BUTTON
+    ============================================= */
+    #copy-btn, #regen-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px;
+      font-family: var(--font-body); padding: 7px 16px;
+      border-radius: 8px; cursor: pointer; transition: color 0.15s;
+    }
+    #copy-btn:hover, #regen-btn:hover { color: var(--text); }
+    #copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="badge">BLIP · spaCy · SWI-Prolog</div>
+    <h1>See an image,<br><em>reason about it.</em></h1>
+    <p class="subtitle">Upload any photo → AI generates a caption → spaCy extracts facts → Prolog runs logic inference rules.</p>
+  </header>
+
+  <!-- UPLOAD CARD -->
+  <div class="card">
+
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept="image/*" />
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z"/>
+        </svg>
+      </div>
+      <h3>Drop your image here</h3>
+      <p>or click to browse · JPEG, PNG, WEBP · Max 10 MB</p>
+    </div>
+
+    <div id="preview-section">
+      <div class="preview-wrap">
+        <img id="preview-img" alt="Preview" />
+        <button class="change-btn" id="change-btn">Change image</button>
+      </div>
+      <button id="caption-btn">✨ Generate Caption + Prolog</button>
+    </div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loading-text">AI is analyzing your image...</p>
+    </div>
+
+    <div id="error-box"></div>
+
+    <!-- RESULT TABS -->
+    <div id="result-section">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="caption">Caption</button>
+        <button class="tab-btn" data-tab="facts">Extracted Facts</button>
+        <button class="tab-btn" data-tab="prolog">Prolog File (.pl)</button>
+        <button class="tab-btn" data-tab="inference">Prolog Inferences</button>
+      </div>
+
+      <!-- TAB: Caption -->
+      <div class="tab-panel active" id="tab-caption">
+        <div class="result-label">Generated Caption</div>
+        <div id="caption-text"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:10px;">
+          <div class="meta" id="meta-info"></div>
+          <div style="display:flex; gap:8px;">
+            <button id="regen-btn">Generate Another Option 🎲</button>
+            <button id="copy-btn">Copy caption</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Extracted Facts -->
+      <div class="tab-panel" id="tab-facts">
+        <div class="result-label">spaCy NLP — extracted facts</div>
+        <div class="facts-grid" id="facts-grid"></div>
+      </div>
+
+      <!-- TAB: Prolog File -->
+      <div class="tab-panel" id="tab-prolog">
+        <div class="result-label">Prolog knowledge base (.pl)</div>
+        <div class="prolog-wrap">
+          <div class="prolog-topbar">
+            <span id="pl-filename">image_facts.pl</span>
+            <div style="display:flex;gap:8px;">
+              <button class="copy-small" id="copy-pl-btn">Copy .pl</button>
+              <button class="copy-small" id="download-pl-btn">Download .pl</button>
+            </div>
+          </div>
+          <pre id="prolog-code"></pre>
+        </div>
+      </div>
+
+      <!-- TAB: Prolog Inferences -->
+      <div class="tab-panel" id="tab-inference">
+        <div class="result-label">SWI-Prolog — inference results</div>
+        <div class="inference-grid" id="inference-grid"></div>
+      </div>
+    </div>
+
+  </div><!-- /card -->
+
+
+
+</div><!-- /container -->
+
+<script>
+  // =============================================
+  // CONFIG — must match your FastAPI port
+  // =============================================
+  const API_URL = "http://localhost:8000/caption";
+
+  // =============================================
+  // DOM
+  // =============================================
+  const uploadZone  = document.getElementById("upload-zone");
+  const fileInput   = document.getElementById("file-input");
+  const previewSec  = document.getElementById("preview-section");
+  const previewImg  = document.getElementById("preview-img");
+  const changeBtn   = document.getElementById("change-btn");
+  const captionBtn  = document.getElementById("caption-btn");
+  const regenBtn    = document.getElementById("regen-btn");
+  const loadingEl   = document.getElementById("loading");
+  const loadingText = document.getElementById("loading-text");
+  const resultSec   = document.getElementById("result-section");
+  const captionText = document.getElementById("caption-text");
+  const metaInfo    = document.getElementById("meta-info");
+  const errorBox    = document.getElementById("error-box");
+  const copyBtn     = document.getElementById("copy-btn");
+
+  let selectedFile = null;
+  let currentPrologText = "";
+  let currentImageId    = "";
+
+  // =============================================
+  // TABS
+  // =============================================
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  // =============================================
+  // FILE HANDLING
+  // =============================================
+  fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
+
+  uploadZone.addEventListener("dragover", e => {
+    e.preventDefault(); uploadZone.classList.add("drag-over");
+  });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+  uploadZone.addEventListener("drop", e => {
+    e.preventDefault(); uploadZone.classList.remove("drag-over");
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { showError("Please upload an image file."); return; }
+    if (file.size > 10 * 1024 * 1024)   { showError("File too large — max 10 MB."); return; }
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      uploadZone.style.display = "none";
+      previewSec.style.display = "block";
+      hideError();
+      resultSec.style.display = "none";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  changeBtn.addEventListener("click", () => {
+    selectedFile = null; fileInput.value = "";
+    uploadZone.style.display = "block";
+    previewSec.style.display = "none";
+    resultSec.style.display = "none";
+    hideError();
+  });
+
+  // =============================================
+  // MAIN REQUEST
+  // =============================================
+  const loadingMessages = [
+    "AI is analyzing your image...",
+    "Running BLIP vision encoder...",
+    "Parsing caption with spaCy...",
+    "Writing Prolog facts...",
+    "Running Prolog inference rules..."
+  ];
+
+  captionBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+    captionBtn.disabled = true;
+    loadingEl.style.display = "block";
+    resultSec.style.display = "none";
+    hideError();
+
+    let msgIdx = 0;
+    const interval = setInterval(() => {
+      loadingText.textContent = loadingMessages[msgIdx % loadingMessages.length];
+      msgIdx++;
+    }, 1500);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch(API_URL, { method: "POST", body: formData });
+      clearInterval(interval);
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: "Server error" }));
+        throw new Error(err.detail || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      renderResults(data);
+
+    } catch (err) {
+      clearInterval(interval);
+      if (err.message.includes("Failed to fetch")) {
+        showError("Cannot connect to API. Make sure FastAPI is running:\nuvicorn step4_api:app --reload");
+      } else {
+        showError(`Error: ${err.message}`);
+      }
+    } finally {
+      captionBtn.disabled = false;
+      loadingEl.style.display = "none";
+    }
+  });
+
+  regenBtn.addEventListener("click", () => {
+    captionBtn.click();
+  });
+
+  // =============================================
+  // RENDER RESULTS
+  // =============================================
+  function renderResults(data) {
+    currentImageId    = data.image_id;
+    currentPrologText = data.prolog_file || "";
+
+    // --- Tab 1: Caption ---
+    captionText.textContent = `"${data.caption}"`;
+    metaInfo.innerHTML = `
+      <span class="meta-item">
+        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        ${data.inference_time_seconds}s
+      </span>
+      <span class="meta-item">
+        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        ${data.image_size || ""}
+      </span>
+      <span class="meta-item">${data.filename}</span>
+      <span class="meta-item" style="color:${data.prolog_inference ? 'var(--success)' : 'var(--error)'}">
+        ${data.prolog_inference && !data.prolog_inference.error ? '● Prolog active' : '○ Prolog offline'}
+      </span>
+    `;
+
+    // --- Tab 2: Extracted Facts ---
+    const ef    = data.extracted_facts || {};
+    const grid  = document.getElementById("facts-grid");
+    const mkTags = (arr, cls="") =>
+      (arr || []).map(x => `<span class="tag ${cls}">${x}</span>`).join("") || "<span style='color:var(--text-muted);font-size:13px'>none</span>";
+
+    const relTags = (ef.relations || [])
+      .map(r => `<span class="tag green">${r.subject} → ${r.verb} → ${r.object}</span>`)
+      .join("") || "<span style='color:var(--text-muted);font-size:13px'>none</span>";
+
+    grid.innerHTML = `
+      <div class="fact-row"><div class="fact-key">Scene</div>    <div class="fact-val"><span class="tag teal">${ef.scene || "unknown"}</span></div></div>
+      <div class="fact-row"><div class="fact-key">Objects</div>  <div class="fact-val">${mkTags(ef.objects)}</div></div>
+      <div class="fact-row"><div class="fact-key">Actions</div>  <div class="fact-val">${mkTags(ef.actions, "teal")}</div></div>
+      <div class="fact-row"><div class="fact-key">Attributes</div><div class="fact-val">${mkTags(ef.attributes)}</div></div>
+      <div class="fact-row"><div class="fact-key">Relations</div><div class="fact-val">${relTags}</div></div>
+    `;
+
+    // --- Tab 3: Prolog file ---
+    document.getElementById("pl-filename").textContent = `img_${data.image_id}.pl`;
+    document.getElementById("prolog-code").innerHTML = syntaxHighlight(currentPrologText);
+
+    // --- Tab 4: Prolog inferences ---
+    const pi   = data.prolog_inference;
+    const igrid = document.getElementById("inference-grid");
+    if (pi && !pi.error) {
+      igrid.innerHTML = `
+        ${infCard("Category",   pi.inferences?.category || "general",   "cat")}
+        ${infCard("Complexity", pi.inferences?.complexity ?? "—",        "num")}
+        ${infCard("Has action",  pi.inferences?.is_active,  pi.inferences?.is_active  ? "true" : "false")}
+        ${infCard("Natural scene", pi.inferences?.is_natural, pi.inferences?.is_natural ? "true" : "false")}
+        ${infCard("Has animal",  pi.inferences?.has_animal, pi.inferences?.has_animal ? "true" : "false")}
+        ${infCard("Crowded",     pi.inferences?.is_crowded, pi.inferences?.is_crowded ? "true" : "false")}
+        ${infCard("Happy scene", pi.inferences?.is_happy,   pi.inferences?.is_happy   ? "true" : "false")}
+        ${infCard("Objects",     (pi.objects || []).length,  "num")}
+      `;
+    } else {
+      igrid.innerHTML = `<div class="inf-card" style="grid-column:1/-1;">
+        <div class="inf-label">Status</div>
+        <div style="font-size:13px;color:var(--error)">
+          ${pi?.error || "SWI-Prolog not available on server. Install: apt-get install swi-prolog && pip install pyswip"}
+        </div>
+      </div>`;
+    }
+
+    resultSec.style.display = "block";
+  }
+
+  function infCard(label, value, cls) {
+    const display = typeof value === "boolean" ? (value ? "yes" : "no") : String(value ?? "—");
+    return `<div class="inf-card">
+      <div class="inf-label">${label}</div>
+      <div class="inf-value ${cls}">${display}</div>
+    </div>`;
+  }
+
+  // =============================================
+  // PROLOG SYNTAX HIGHLIGHT (simple)
+  // =============================================
+  function syntaxHighlight(code) {
+    return code
+      .split("\n")
+      .map(line => {
+        if (line.trim().startsWith("%"))
+          return `<span class="pl-comment">${esc(line)}</span>`;
+        return line
+          .replace(/([a-z][a-zA-Z0-9_]*)(?=\()/g, '<span class="pl-pred">$1</span>')
+          .replace(/'([^']+)'/g, "<span class=\"pl-str\">'$1'</span>")
+          .replace(/\b([A-Z_][a-zA-Z0-9_]*)\b/g, '<span class="pl-atom">$1</span>')
+          .replace(/([.,()\[\]])/g, '<span class="pl-punc">$1</span>');
+      })
+      .join("\n");
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // =============================================
+  // COPY / DOWNLOAD
+  // =============================================
+  copyBtn.addEventListener("click", () => {
+    const text = captionText.innerText.replace(/^"|"$/g, "");
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = "Copied!"; copyBtn.classList.add("copied");
+      setTimeout(() => { copyBtn.textContent = "Copy caption"; copyBtn.classList.remove("copied"); }, 2000);
+    });
+  });
+
+  document.getElementById("copy-pl-btn").addEventListener("click", () => {
+    navigator.clipboard.writeText(currentPrologText).then(() => {
+      document.getElementById("copy-pl-btn").textContent = "Copied!";
+      setTimeout(() => { document.getElementById("copy-pl-btn").textContent = "Copy .pl"; }, 2000);
+    });
+  });
+
+  document.getElementById("download-pl-btn").addEventListener("click", () => {
+    const blob = new Blob([currentPrologText], { type: "text/plain" });
+    const a    = document.createElement("a");
+    a.href     = URL.createObjectURL(blob);
+    a.download = `img_${currentImageId}.pl`;
+    a.click();
+  });
+
+  // =============================================
+  // ERROR HELPERS
+  // =============================================
+  function showError(msg) { errorBox.textContent = msg; errorBox.style.display = "block"; }
+  function hideError()    { errorBox.style.display = "none"; }
+</script>
+</body>
+</html>

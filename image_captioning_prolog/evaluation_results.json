@@ -1,0 +1,18 @@
+{
+  "model_path": "./blip_finetuned",
+  "num_test_images": 0,
+  "bleu_scores": {},
+  "prolog_metrics": {
+    "total_images": 0,
+    "avg_objects_per_image": 0.0,
+    "avg_actions_per_image": 0.0,
+    "avg_relations_per_image": 0.0,
+    "pct_active_images": 0.0,
+    "pct_natural_scenes": 0.0,
+    "pct_contains_animal": 0.0,
+    "pct_crowded": 0.0,
+    "category_distribution": {},
+    "per_image_results": []
+  },
+  "examples": []
+}

@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# MacOS system files
+.DS_Store
+__MACOSX/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Large model files / fine-tuned checkpoints
+image_captioning_prolog/blip_finetuned/
+*.safetensors
+*.bin
+*.pt
+*.h5
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

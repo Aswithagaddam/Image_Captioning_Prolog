@@ -1,0 +1,48 @@
+# ============================================================
+# requirements.txt — AI Image Captioning with Prolog
+# ============================================================
+# Install all at once with:
+#   pip install -r requirements.txt
+#
+# Also install SWI-Prolog separately (not a pip package):
+#   Ubuntu/Debian/Colab: sudo apt-get install -y swi-prolog
+#   macOS:               brew install swi-prolog
+#   Windows:             https://www.swi-prolog.org/download/stable
+# ============================================================
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# HuggingFace — BLIP model and MS-COCO dataset
+transformers>=4.35.0
+datasets>=2.14.0
+huggingface-hub>=0.19.0
+
+# Image handling
+Pillow>=10.0.0
+
+# NLP — caption parsing into structured facts
+spacy>=3.7.0
+# After installing spacy, run: python -m spacy download en_core_web_sm
+
+# Prolog bridge — Python ↔ SWI-Prolog
+pyswip>=0.2.11
+# Requires SWI-Prolog installed on the OS (see above)
+
+# API server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# Gradio UI
+gradio>=4.0.0
+
+# Evaluation
+nltk>=3.8.0
+
+# Utilities
+requests>=2.31.0
+tqdm>=4.66.0
+matplotlib>=3.7.0
+numpy>=1.24.0
